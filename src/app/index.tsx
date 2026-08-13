@@ -1,98 +1,148 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useState } from "react";
+import {
+  Image,
+  Text,
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+} from "react-native";
+import { Link } from "expo-router";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
+interface Pokemon {
+  name: string;
+  // url: string;
+  imageUrl: string;
+  imageBack: string;
+  types: DetailedType[];
 }
 
-export default function HomeScreen() {
+interface TypeRef {
+  name: string;
+  url: string;
+}
+
+interface DetailedType {
+  slot: number;
+  type: TypeRef;
+}
+
+const colorsByType = {
+  normal: "#A8A77A",
+  fire: "#EE8130",
+  water: "#6390F0",
+  electric: "#F7D02C",
+  grass: "#7AC74C",
+  ice: "#96D9D6",
+  fighting: "#C22E28",
+  poison: "#A33EA1",
+  ground: "#E2BF65",
+  flying: "#A98FF3",
+  psychic: "#F95587",
+  bug: "#A6B91A",
+  rock: "#B6A136",
+  ghost: "#735797",
+  dragon: "#6F35FC",
+  dark: "#705746",
+  steel: "#B7B7CE",
+  fairy: "#D685AD",
+};
+
+export default function Index() {
+  const [pokemons, setPokemons] = useState<Pokemon[]>([]);
+
+  useEffect(() => {
+    fetchPokemons();
+  }, []);
+
+  async function fetchPokemons() {
+    try {
+      const response = await fetch(
+        "https://pokeapi.co/api/v2/pokemon?limit=10",
+      );
+      const data = await response.json();
+
+      const detailedPokemons = await Promise.all(
+        data.results.map(async (pokemon: any) => {
+          const response = await fetch(pokemon.url);
+          const detailedData = await response.json();
+          return {
+            name: detailedData.name,
+            imageUrl: detailedData.sprites.front_default, // You can change this to any other property you want to display
+            imageBack: detailedData.sprites.back_default, // You can change this to any other property you want to display
+            types: detailedData.types, // Extracting types
+          };
+        }),
+      );
+
+      setPokemons(detailedPokemons);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+    <ScrollView
+      contentContainerStyle={{
+        flexGrow: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 16,
+        padding: 16,
+      }}
+    >
+      {pokemons.map((pokemon) => (
+        <Link key={pokemon.name} href={{ pathname: "/pokemonDetails", params: { name: pokemon.name } }}>
+          <View
+            style={[
+              styles.container,
+              {
+                backgroundColor:
+                  colorsByType[
+                    (pokemon.types[0].type.name as keyof typeof colorsByType) ||
+                      "normal"
+                  ] + 50,
+              },
+            ]}
+          >
+            <Text style={styles.name}>{pokemon.name}</Text>
+            <Text style={styles.type}>{pokemon.types[0].type.name}</Text>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
+              <Image
+                source={{ uri: pokemon.imageUrl }}
+                style={{ width: 150, height: 150 }}
+              />
+              <Image
+                source={{ uri: pokemon.imageBack }}
+                style={{ width: 150, height: 150 }}
+              />
+            </View>
+          </View>
+        </Link>
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 26,
+    borderRadius: 20,
+    // cursor: "pointer",
+    // backgroundColor is set dynamically per-item inline where the component is rendered
   },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+  name: {
+    fontSize: 20,
+    fontWeight: "bold",
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  type: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "grey",
   },
 });
